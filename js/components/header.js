@@ -6,7 +6,7 @@ export function initializeHeader() {
                 <button id="sidebar-toggle" class="btn btn-link">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1 class="h4 mb-0 ms-3">DOCX to PowerPoint</h1>
+                <h1 class="h4 mb-0 ms-3">AI Quicker Slide</h1>
             </div>
             <button id="theme-toggle" class="btn btn-link">
                 <i class="fas fa-moon"></i>
@@ -18,7 +18,6 @@ export function initializeHeader() {
   const sidebarToggle = document.getElementById("sidebar-toggle");
   sidebarToggle.addEventListener("click", () => {
     const sidebar = document.getElementById("sidebar");
-    sidebar.classList.toggle("active");
     sidebar.classList.toggle("sidebar-hidden");
   });
 }
