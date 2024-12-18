@@ -1,5 +1,11 @@
-import { showLoadingModal, hideLoadingModal } from "../utils/modal.js";
+// createSlide.js
+import {
+  showLoadingModal,
+  hideLoadingModal,
+  showErrorInModal,
+} from "../utils/modal.js";
 import { saveFileToStorage } from "../utils/storage.js";
+
 const BASE_URL = "http://127.0.0.1:5000";
 
 export function loadCreateSlidePage(container) {
@@ -25,7 +31,7 @@ export function loadCreateSlidePage(container) {
                     </button>
                     <div class="input-group" style="max-width: 500px; margin: 10px 0;">
                         <input type="text" id="slide-name-input" class="form-control" 
-                               placeholder="Nhập tên file powerpoint bạn muốn lưu" value="presentation">
+                               placeholder="Enter presentation name" value="presentation">
                         <button id="generate-slides" class="btn btn-primary">
                             <i class="fas fa-magic me-2"></i>Generate Slides
                         </button>
@@ -65,7 +71,10 @@ function initializeCreateSlideHandlers() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Upload failed");
+      }
 
       const data = await response.json();
       displaySlides(data.slides_content);
@@ -73,10 +82,10 @@ function initializeCreateSlideHandlers() {
       form.classList.add("d-none");
       slidesEditor.classList.remove("d-none");
     } catch (error) {
-      alert("Error processing file: " + error.message);
-    } finally {
-      hideLoadingModal();
+      showErrorInModal(`Error processing file: ${error.message}`);
+      return;
     }
+    hideLoadingModal();
   });
 
   addSlideBtn.addEventListener("click", () => {
@@ -85,14 +94,13 @@ function initializeCreateSlideHandlers() {
 
   generateSlidesBtn.addEventListener("click", async () => {
     try {
-      // Validate slide name
       const randomeValue = `${Math.floor(Math.random() * 1000)}${Math.floor(
         Math.random() * 1000
       )}${new Date().getTime()}`;
       const slideName = `${slideNameInput.value.trim()}-${randomeValue}`;
+
       if (!slideName) {
-        alert("Please enter a presentation name");
-        return;
+        throw new Error("Please enter a presentation name");
       }
 
       showLoadingModal("Creating slides...");
@@ -111,24 +119,27 @@ function initializeCreateSlideHandlers() {
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to generate slides");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to generate slides");
+      }
 
       const data = await response.json();
       showDownloadLink(`${BASE_URL}/${data.link_to_download}`);
 
-      // Save file information to storage with custom name
       saveFileToStorage({
         name: `${slideName}.pptx`,
         downloadLink: `${BASE_URL}/${data.link_to_download}`,
         createdAt: new Date().toISOString(),
       });
     } catch (error) {
-      alert("Error generating slides: " + error.message);
-    } finally {
-      hideLoadingModal();
+      showErrorInModal(`Error generating slides: ${error.message}`);
+      return;
     }
+    hideLoadingModal();
   });
 }
+
 function displaySlides(slidesContent) {
   const slidesContainer = document.getElementById("slides-container");
   slidesContainer.innerHTML = "";
@@ -146,9 +157,26 @@ function createSlideElement(content, number) {
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Slide ${number}</h5>
-                <button class="btn btn-danger btn-sm delete-slide">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-secondary btn-sm add-slide-before" 
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
+                            title="Add slide above">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm add-slide-after" 
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
+                            title="Add slide below">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                    <button class="btn btn-danger btn-sm delete-slide" 
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
+                            title="Delete slide">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <textarea class="form-control" rows="4">${content}</textarea>
@@ -156,14 +184,31 @@ function createSlideElement(content, number) {
         </div>
     `;
 
+  // Add event listeners
   div.querySelector(".delete-slide").addEventListener("click", () => {
     div.remove();
     updateSlideNumbers();
   });
 
+  div.querySelector(".add-slide-before").addEventListener("click", () => {
+    const newSlide = createSlideElement("", 0);
+    div.parentNode.insertBefore(newSlide, div);
+    updateSlideNumbers();
+  });
+
+  div.querySelector(".add-slide-after").addEventListener("click", () => {
+    const newSlide = createSlideElement("", 0);
+    div.parentNode.insertBefore(newSlide, div.nextSibling);
+    updateSlideNumbers();
+  });
+
+  // Initialize tooltips for all buttons in this slide
+  div.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((element) => {
+    new bootstrap.Tooltip(element);
+  });
+
   return div;
 }
-
 function addNewSlide() {
   const slidesContainer = document.getElementById("slides-container");
   const newSlideNumber = slidesContainer.children.length + 1;
